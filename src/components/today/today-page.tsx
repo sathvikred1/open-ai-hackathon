@@ -63,6 +63,7 @@ import {
   saveDailyPlan,
   ScheduleBlock,
 } from "@/lib/daily-planner";
+import { interpretDisruption } from "@/lib/replanning-client";
 import { cn } from "@/lib/utils";
 
 const priorityStyles = {
@@ -187,6 +188,7 @@ export function TodayPage() {
   const [replanOpen, setReplanOpen] = useState(false);
   const [disruption, setDisruption] = useState("");
   const [replanError, setReplanError] = useState("");
+  const [isReplanning, setIsReplanning] = useState(false);
   const date = getLocalDateKey();
   const planningGoals = useMemo(
     () =>
@@ -230,7 +232,7 @@ export function TodayPage() {
     });
   }
 
-  function applyReplan(event: FormEvent<HTMLFormElement>) {
+  async function applyReplan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!plan) return;
     if (disruption.trim().length < 4) {
@@ -238,17 +240,30 @@ export function TodayPage() {
       return;
     }
 
-    const now = new Date();
-    saveDailyPlan(
-      replanDailySchedule({
-        plan,
-        report: disruption,
-        nowMinutes: now.getHours() * 60 + now.getMinutes(),
-      }),
-    );
-    setReplanOpen(false);
-    setDisruption("");
+    setIsReplanning(true);
     setReplanError("");
+
+    try {
+      const report = disruption.trim();
+      const interpretation = await interpretDisruption(report);
+      const now = new Date();
+      saveDailyPlan(
+        replanDailySchedule({
+          plan,
+          report,
+          instructions: interpretation.instructions,
+          interpretationSource: interpretation.source,
+          fallbackReason: interpretation.fallbackReason,
+          nowMinutes: now.getHours() * 60 + now.getMinutes(),
+        }),
+      );
+      setReplanOpen(false);
+      setDisruption("");
+    } catch {
+      setReplanError("Brolife couldn’t rebuild the plan. Please try again.");
+    } finally {
+      setIsReplanning(false);
+    }
   }
 
   const blocks = plan?.date === date ? plan.blocks : [];
@@ -417,10 +432,23 @@ export function TodayPage() {
                           “{plan.lastReplan.report}”
                         </p>
                       </div>
-                      <Badge className="border-0 bg-white/70 text-emerald-800 shadow-xs">
-                        {plan.lastReplan.changes.length} changes
-                      </Badge>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge className="border-0 bg-white/70 text-emerald-800 shadow-xs">
+                          {plan.lastReplan.interpretationSource === "openai"
+                            ? "AI interpreted"
+                            : "Local fallback"}
+                        </Badge>
+                        <Badge className="border-0 bg-white/70 text-emerald-800 shadow-xs">
+                          {plan.lastReplan.changes.length} changes
+                        </Badge>
+                      </div>
                     </div>
+
+                    {plan.lastReplan.fallbackReason ? (
+                      <p className="mt-3 rounded-xl bg-white/65 px-3 py-2.5 text-xs leading-5 text-emerald-950/70 ring-1 ring-emerald-900/5">
+                        {plan.lastReplan.fallbackReason}
+                      </p>
+                    ) : null}
 
                     <div className="mt-4 space-y-2">
                       {plan.lastReplan.changes.length > 0 ? (
@@ -617,12 +645,12 @@ export function TodayPage() {
               <CardHeader>
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-violet-700">
                   <RotateCcw className="size-3.5" />
-                  NEXT UP: ADAPTIVE REPLANNING
+                  AI-ASSISTED ADAPTIVE REPLANNING
                 </div>
                 <CardTitle className="text-lg font-semibold">Plans changed?</CardTitle>
                 <CardDescription className="leading-5">
-                  For now, regenerate using the same local rules. AI tradeoff
-                  reasoning comes next.
+                  Explain what changed naturally. AI understands the disruption,
+                  then Brolife&apos;s local engine safely rebuilds your timetable.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -651,8 +679,8 @@ export function TodayPage() {
                 What changed?
               </DialogTitle>
               <DialogDescription className="leading-5">
-                Tell Brolife what happened in plain language. Local rules will
-                rebuild only the unfinished part of your day.
+                Tell Brolife what happened in plain language. AI interprets the
+                disruption, then local rules rebuild only the unfinished day.
               </DialogDescription>
             </DialogHeader>
 
@@ -665,6 +693,7 @@ export function TodayPage() {
                 }}
                 placeholder="e.g. I’m running 2 hours late and feeling tired."
                 autoFocus
+                disabled={isReplanning}
                 className="min-h-28 resize-none rounded-xl px-4 py-3 leading-6"
               />
               <div className="mt-3 flex flex-wrap gap-2">
@@ -677,6 +706,7 @@ export function TodayPage() {
                   <button
                     key={example}
                     type="button"
+                    disabled={isReplanning}
                     onClick={() => {
                       setDisruption(example);
                       setReplanError("");
@@ -720,11 +750,17 @@ export function TodayPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setReplanOpen(false)}
+                disabled={isReplanning}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                <ListRestart /> Rebuild remaining day
+              <Button type="submit" disabled={isReplanning}>
+                {isReplanning ? (
+                  <RefreshCw className="animate-spin" />
+                ) : (
+                  <ListRestart />
+                )}
+                {isReplanning ? "Understanding change…" : "Rebuild remaining day"}
               </Button>
             </DialogFooter>
           </form>

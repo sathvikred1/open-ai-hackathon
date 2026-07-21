@@ -1,5 +1,10 @@
 import { Goal, GoalPriority } from "@/lib/goals";
 import { OnboardingProfile } from "@/lib/onboarding";
+import {
+  interpretDisruptionLocally,
+  isReplanInstructions,
+  ReplanInstructions,
+} from "@/lib/replanning";
 
 export const DAILY_PLAN_STORAGE_KEY = "brolife:daily-plan";
 export const DAILY_PLAN_EVENT = "brolife:daily-plan-updated";
@@ -30,6 +35,9 @@ export type ReplanChange = {
 export type ReplanRecord = {
   report: string;
   replannedAt: string;
+  instructions: ReplanInstructions;
+  interpretationSource: "openai" | "local";
+  fallbackReason: string | null;
   changes: ReplanChange[];
   explanation: string[];
 };
@@ -211,6 +219,29 @@ function isReplanRecord(value: unknown): value is ReplanRecord {
   return (
     typeof record.report === "string" &&
     typeof record.replannedAt === "string" &&
+    isReplanInstructions(record.instructions) &&
+    (record.interpretationSource === "openai" ||
+      record.interpretationSource === "local") &&
+    (record.fallbackReason === null ||
+      typeof record.fallbackReason === "string") &&
+    Array.isArray(record.changes) &&
+    record.changes.every(isReplanChange) &&
+    Array.isArray(record.explanation) &&
+    record.explanation.every((item) => typeof item === "string")
+  );
+}
+
+type LegacyReplanRecord = Omit<
+  ReplanRecord,
+  "instructions" | "interpretationSource" | "fallbackReason"
+>;
+
+function isLegacyReplanRecord(value: unknown): value is LegacyReplanRecord {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Partial<LegacyReplanRecord>;
+  return (
+    typeof record.report === "string" &&
+    typeof record.replannedAt === "string" &&
     Array.isArray(record.changes) &&
     record.changes.every(isReplanChange) &&
     Array.isArray(record.explanation) &&
@@ -222,7 +253,9 @@ export function parseDailyPlan(value: string | null): DailyPlan | null {
   if (!value) return null;
 
   try {
-    const plan = JSON.parse(value) as Partial<DailyPlan>;
+    const plan = JSON.parse(value) as Partial<
+      Omit<DailyPlan, "lastReplan">
+    > & { lastReplan?: unknown };
     const validPlan =
       plan.version === 1 &&
       typeof plan.date === "string" &&
@@ -239,7 +272,16 @@ export function parseDailyPlan(value: string | null): DailyPlan | null {
       generatedAt: plan.generatedAt as string,
       unscheduledCount: plan.unscheduledCount as number,
       blocks: plan.blocks as ScheduleBlock[],
-      lastReplan: isReplanRecord(plan.lastReplan) ? plan.lastReplan : null,
+      lastReplan: isReplanRecord(plan.lastReplan)
+        ? plan.lastReplan
+        : isLegacyReplanRecord(plan.lastReplan)
+          ? {
+              ...plan.lastReplan,
+              instructions: interpretDisruptionLocally(plan.lastReplan.report),
+              interpretationSource: "local",
+              fallbackReason: null,
+            }
+          : null,
     };
   } catch {
     return null;
@@ -456,25 +498,10 @@ export function generateDailyPlan({
   };
 }
 
-function extractDuration(report: string) {
-  const numericMatch = report.match(
-    /(\d+(?:\.\d+)?)\s*(hours?|hrs?|hr|minutes?|mins?|min)\b/i,
-  );
-  if (numericMatch) {
-    const amount = Number(numericMatch[1]);
-    const unit = numericMatch[2].toLowerCase();
-    return Math.round(amount * (unit.startsWith("h") ? 60 : 1));
-  }
-  if (/\b(?:an|one) hour\b/i.test(report)) return 60;
-  if (/\bhalf (?:an )?hour\b/i.test(report)) return 30;
-  return null;
-}
+function getTaskKeywords(taskQuery: string | null) {
+  if (!taskQuery) return [];
 
-function getMissedKeywords(report: string) {
-  const match = report.match(/\bmissed\s+(?:my\s+|the\s+)?(.+?)(?:[.!?,]|$)/i);
-  if (!match) return [];
-
-  const keywords = match[1]
+  const keywords = taskQuery
     .toLowerCase()
     .split(/\s+/)
     .map((word) => word.replace(/[^a-z0-9]/g, ""))
@@ -508,28 +535,27 @@ function formatDurationLabel(minutes: number) {
 export function replanDailySchedule({
   plan,
   report,
+  instructions,
+  interpretationSource,
+  fallbackReason,
   nowMinutes,
 }: {
   plan: DailyPlan;
   report: string;
+  instructions: ReplanInstructions;
+  interpretationSource: "openai" | "local";
+  fallbackReason: string | null;
   nowMinutes: number;
 }): DailyPlan {
   const normalizedReport = report.trim();
-  const duration = extractDuration(normalizedReport);
-  const runningLate = /\b(late|behind|delayed|running behind)\b/i.test(
-    normalizedReport,
-  );
-  const limitedTime = /\b(only|just)\b.*\b(left|available|remaining)\b/i.test(
-    normalizedReport,
-  );
-  const lowEnergy = /\b(tired|exhausted|drained|low energy|no energy)\b/i.test(
-    normalizedReport,
-  );
-  const missedKeywords = getMissedKeywords(normalizedReport);
+  const runningLate = instructions.delayMinutes > 0;
+  const limitedTime = instructions.availableMinutes !== null;
+  const lowEnergy = instructions.energyLevel === "low";
+  const missedKeywords = getTaskKeywords(instructions.missedTaskQuery);
   const reportedMiss = missedKeywords.length > 0;
-  const defaultDelay =
-    !runningLate && !limitedTime && !reportedMiss && !lowEnergy ? 30 : 0;
-  const delay = runningLate ? duration ?? 60 : defaultDelay;
+  const delay =
+    instructions.delayMinutes ||
+    (instructions.disruptionKind === "other" ? 30 : 0);
 
   const completedBlocks = plan.blocks.filter((block) => block.completed);
   const unfinishedTaskBlocks = plan.blocks
@@ -567,10 +593,12 @@ export function replanDailySchedule({
     ...plan.blocks.map((block) => block.endMinutes),
     start,
   );
-  const schedulingEnd =
-    limitedTime && duration
-      ? Math.min(originalDayEnd, nowMinutes + duration)
-      : originalDayEnd;
+  const schedulingEnd = limitedTime
+    ? Math.min(
+        originalDayEnd,
+        nowMinutes + (instructions.availableMinutes ?? 0),
+      )
+    : originalDayEnd;
   const protectedIntervals = [...completedBlocks, ...futureAnchors].map(
     (block) => ({ start: block.startMinutes, end: block.endMinutes }),
   );
@@ -667,21 +695,25 @@ export function replanDailySchedule({
   ];
   if (runningLate) {
     explanation.push(`Shifted unfinished work by ${formatDurationLabel(delay)}.`);
-  } else if (reportedMiss) {
+  }
+  if (reportedMiss) {
     explanation.push(
       matchedMissedBlock
         ? `Prioritized “${matchedMissedBlock.title}” so it gets another place today.`
         : "Could not match the missed activity exactly, so the remaining plan was rebuilt from now.",
     );
-  } else if (lowEnergy) {
+  }
+  if (lowEnergy) {
     explanation.push(
       "Added recovery time and shortened unfinished work to reduce the load.",
     );
-  } else if (limitedTime && duration) {
+  }
+  if (limitedTime) {
     explanation.push(
-      `Kept only what fits inside the next ${formatDurationLabel(duration)}.`,
+      `Kept only what fits inside the next ${formatDurationLabel(instructions.availableMinutes ?? 0)}.`,
     );
-  } else {
+  }
+  if (!runningLate && !reportedMiss && !lowEnergy && !limitedTime) {
     explanation.push(
       "Used a 30-minute disruption buffer and rebuilt unfinished work from now.",
     );
@@ -704,6 +736,9 @@ export function replanDailySchedule({
     lastReplan: {
       report: normalizedReport,
       replannedAt: new Date().toISOString(),
+      instructions,
+      interpretationSource,
+      fallbackReason,
       changes,
       explanation,
     },
