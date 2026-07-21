@@ -1,0 +1,126 @@
+import Link from "next/link";
+import {
+  BarChart3,
+  BookOpen,
+  BriefcaseBusiness,
+  CalendarDays,
+  HeartPulse,
+  ListTodo,
+  MoonStar,
+  Rocket,
+  Settings2,
+  Target,
+} from "lucide-react";
+
+import { BrolifeLogo } from "@/components/brolife-logo";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+
+const primaryNavigation = [
+  { label: "Today", icon: CalendarDays, active: true },
+  { label: "Goals", icon: Target },
+  { label: "Tasks", icon: ListTodo, count: 8 },
+  { label: "Progress", icon: BarChart3 },
+];
+
+const categories = [
+  { label: "Work", icon: BriefcaseBusiness, color: "text-sky-600" },
+  { label: "Learning", icon: BookOpen, color: "text-violet-600" },
+  { label: "Health", icon: HeartPulse, color: "text-rose-500" },
+  { label: "Side hustle", icon: Rocket, color: "text-amber-600" },
+];
+
+export function SidebarContent() {
+  return (
+    <div className="flex h-full flex-col bg-sidebar px-3 py-4 text-sidebar-foreground">
+      <div className="px-2 pb-7 pt-1">
+        <BrolifeLogo />
+      </div>
+
+      <nav aria-label="Main navigation" className="space-y-1">
+        {primaryNavigation.map((item) => {
+          const Icon = item.icon;
+          const className = cn(
+            "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors",
+            item.active
+              ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          );
+
+          const content = (
+            <>
+              <Icon className="size-[17px]" strokeWidth={2} />
+              <span>{item.label}</span>
+              {item.count ? (
+                <Badge
+                  variant="secondary"
+                  className="ml-auto h-5 min-w-5 px-1.5 text-[10px]"
+                >
+                  {item.count}
+                </Badge>
+              ) : null}
+            </>
+          );
+
+          return item.active ? (
+            <Link key={item.label} href="/" className={className}>
+              {content}
+            </Link>
+          ) : (
+            <button key={item.label} type="button" className={className}>
+              {content}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="px-3 pb-2 pt-7">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+          Categories
+        </p>
+      </div>
+      <nav aria-label="Task categories" className="space-y-0.5">
+        {categories.map((category) => {
+          const Icon = category.icon;
+          return (
+            <button
+              key={category.label}
+              type="button"
+              className="flex h-9 w-full items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <Icon className={cn("size-4", category.color)} />
+              <span>{category.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto space-y-3 pt-6">
+        <div className="rounded-2xl bg-emerald-950 p-4 text-white shadow-sm">
+          <div className="mb-3 flex items-start justify-between">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-white/10">
+              <MoonStar className="size-4 text-emerald-200" />
+            </div>
+            <Badge className="border-0 bg-emerald-400/15 text-[10px] text-emerald-100">
+              Tonight
+            </Badge>
+          </div>
+          <p className="text-xs font-medium text-emerald-200">Night focus</p>
+          <p className="mt-1 text-sm font-semibold">Side hustle</p>
+          <p className="mt-1 text-xs text-emerald-100/60">8:30–10:00 PM</p>
+        </div>
+
+        <Separator />
+        <Button
+          variant="ghost"
+          className="h-10 w-full justify-start gap-3 px-3 text-muted-foreground"
+        >
+          <Settings2 className="size-4" />
+          Settings
+        </Button>
+      </div>
+    </div>
+  );
+}
