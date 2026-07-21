@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BatteryMedium,
@@ -13,6 +13,7 @@ import {
   Coffee,
   Flag,
   ListRestart,
+  MessageSquareWarning,
   MoonStar,
   Plus,
   RefreshCw,
@@ -35,8 +36,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { UserName } from "@/components/user-profile";
 import { useDailyPlan } from "@/hooks/use-daily-plan";
 import { useGoals } from "@/hooks/use-goals";
@@ -49,6 +59,7 @@ import {
   formatPlanTime,
   generateDailyPlan,
   getLocalDateKey,
+  replanDailySchedule,
   saveDailyPlan,
   ScheduleBlock,
 } from "@/lib/daily-planner";
@@ -173,6 +184,9 @@ export function TodayPage() {
   const profile = useOnboardingProfile();
   const { goals, hasStoredGoals } = useGoals();
   const plan = useDailyPlan();
+  const [replanOpen, setReplanOpen] = useState(false);
+  const [disruption, setDisruption] = useState("");
+  const [replanError, setReplanError] = useState("");
   const date = getLocalDateKey();
   const planningGoals = useMemo(
     () =>
@@ -214,6 +228,27 @@ export function TodayPage() {
           : block,
       ),
     });
+  }
+
+  function applyReplan(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!plan) return;
+    if (disruption.trim().length < 4) {
+      setReplanError("Tell Brolife a little more about what changed.");
+      return;
+    }
+
+    const now = new Date();
+    saveDailyPlan(
+      replanDailySchedule({
+        plan,
+        report: disruption,
+        nowMinutes: now.getHours() * 60 + now.getMinutes(),
+      }),
+    );
+    setReplanOpen(false);
+    setDisruption("");
+    setReplanError("");
   }
 
   const blocks = plan?.date === date ? plan.blocks : [];
@@ -262,13 +297,23 @@ export function TodayPage() {
               Add tasks
             </Link>
             <Button
+              variant="outline"
               size="lg"
               onClick={regeneratePlan}
               disabled={!plan}
-              className="flex-1 shadow-sm shadow-primary/20 sm:flex-none"
+              className="hidden bg-card sm:inline-flex"
             >
               <RefreshCw />
-              Regenerate plan
+              Regenerate
+            </Button>
+            <Button
+              size="lg"
+              onClick={() => setReplanOpen(true)}
+              disabled={!plan}
+              className="flex-1 shadow-sm shadow-primary/20 sm:flex-none"
+            >
+              <MessageSquareWarning />
+              Replan my day
             </Button>
           </div>
         </section>
@@ -353,6 +398,78 @@ export function TodayPage() {
               <div className="flex items-start gap-2 border-b bg-amber-50/70 px-5 py-3 text-xs text-amber-800 sm:px-6">
                 <Flag className="mt-0.5 size-3.5 shrink-0" />
                 {plan.unscheduledCount} unfinished {plan.unscheduledCount === 1 ? "task doesn’t" : "tasks don’t"} fit today. They stay safely in Goals for the next plan.
+              </div>
+            ) : null}
+
+            {plan?.lastReplan ? (
+              <div className="border-b bg-gradient-to-r from-emerald-50/80 to-sky-50/60 px-5 py-5 sm:px-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
+                    <ListRestart className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-emerald-950">
+                          Your plan was updated
+                        </p>
+                        <p className="mt-0.5 text-xs text-emerald-900/60">
+                          “{plan.lastReplan.report}”
+                        </p>
+                      </div>
+                      <Badge className="border-0 bg-white/70 text-emerald-800 shadow-xs">
+                        {plan.lastReplan.changes.length} changes
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      {plan.lastReplan.changes.length > 0 ? (
+                        plan.lastReplan.changes.map((change) => (
+                          <div
+                            key={`${change.blockId}-${change.type}`}
+                            className="flex items-start gap-2 rounded-xl bg-white/65 px-3 py-2.5 text-xs ring-1 ring-emerald-900/5"
+                          >
+                            <span
+                              className={cn(
+                                "mt-1 size-1.5 shrink-0 rounded-full",
+                                change.type === "removed"
+                                  ? "bg-rose-500"
+                                  : change.type === "added"
+                                    ? "bg-violet-500"
+                                    : "bg-emerald-500",
+                              )}
+                            />
+                            <span>
+                              <strong className="font-semibold text-foreground">
+                                {change.title}:
+                              </strong>{" "}
+                              <span className="leading-5 text-muted-foreground">
+                                {change.detail}
+                              </span>
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="rounded-xl bg-white/65 px-3 py-2.5 text-xs text-muted-foreground">
+                          The remaining blocks already fit, so no times needed to change.
+                        </p>
+                      )}
+                    </div>
+
+                    <details className="mt-3 text-xs text-emerald-950/70">
+                      <summary className="cursor-pointer font-semibold">
+                        Why Brolife made these choices
+                      </summary>
+                      <ul className="mt-2 space-y-1.5 pl-4">
+                        {plan.lastReplan.explanation.map((item) => (
+                          <li key={item} className="list-disc leading-5">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </div>
+                </div>
               </div>
             ) : null}
 
@@ -511,10 +628,10 @@ export function TodayPage() {
               <CardContent>
                 <Button
                   variant="outline"
-                  onClick={regeneratePlan}
+                  onClick={() => setReplanOpen(true)}
                   className="w-full justify-between bg-white/70"
                 >
-                  Rebuild today&apos;s plan
+                  Report a disruption
                   <ArrowRight />
                 </Button>
               </CardContent>
@@ -522,6 +639,97 @@ export function TodayPage() {
           </aside>
         </div>
       </div>
+
+      <Dialog open={replanOpen} onOpenChange={setReplanOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={applyReplan}>
+            <DialogHeader className="pr-8">
+              <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-violet-100 text-violet-800">
+                <MessageSquareWarning className="size-[18px]" />
+              </div>
+              <DialogTitle className="text-lg font-semibold">
+                What changed?
+              </DialogTitle>
+              <DialogDescription className="leading-5">
+                Tell Brolife what happened in plain language. Local rules will
+                rebuild only the unfinished part of your day.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-5">
+              <Textarea
+                value={disruption}
+                onChange={(event) => {
+                  setDisruption(event.target.value);
+                  setReplanError("");
+                }}
+                placeholder="e.g. I’m running 2 hours late and feeling tired."
+                autoFocus
+                className="min-h-28 resize-none rounded-xl px-4 py-3 leading-6"
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[
+                  "I’m running 2 hours late",
+                  "I missed my workout",
+                  "I feel tired",
+                  "I only have 90 minutes left",
+                ].map((example) => (
+                  <button
+                    key={example}
+                    type="button"
+                    onClick={() => {
+                      setDisruption(example);
+                      setReplanError("");
+                    }}
+                    className="rounded-full border bg-background px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-emerald-50 hover:text-foreground"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-muted/60 p-4">
+                <p className="text-xs font-semibold">What stays safe</p>
+                <ul className="mt-2 space-y-2 text-xs leading-5 text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                    Completed blocks keep their exact times and status.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                    Sleep and future meal anchors remain protected.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                    Anything that cannot fit is clearly deferred, not lost.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mt-3 min-h-5" aria-live="polite">
+                {replanError ? (
+                  <p className="text-sm font-medium text-destructive">
+                    {replanError}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setReplanOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                <ListRestart /> Rebuild remaining day
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

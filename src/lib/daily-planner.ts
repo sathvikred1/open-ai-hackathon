@@ -20,12 +20,27 @@ export type ScheduleBlock = {
   priority: GoalPriority | null;
 };
 
+export type ReplanChange = {
+  blockId: string;
+  title: string;
+  type: "moved" | "shortened" | "removed" | "added";
+  detail: string;
+};
+
+export type ReplanRecord = {
+  report: string;
+  replannedAt: string;
+  changes: ReplanChange[];
+  explanation: string[];
+};
+
 export type DailyPlan = {
   version: 1;
   date: string;
   generatedAt: string;
   unscheduledCount: number;
   blocks: ScheduleBlock[];
+  lastReplan: ReplanRecord | null;
 };
 
 type Interval = { start: number; end: number };
@@ -176,19 +191,56 @@ function isScheduleBlock(value: unknown): value is ScheduleBlock {
   );
 }
 
+function isReplanChange(value: unknown): value is ReplanChange {
+  if (!value || typeof value !== "object") return false;
+  const change = value as Partial<ReplanChange>;
+  return (
+    typeof change.blockId === "string" &&
+    typeof change.title === "string" &&
+    (change.type === "moved" ||
+      change.type === "shortened" ||
+      change.type === "removed" ||
+      change.type === "added") &&
+    typeof change.detail === "string"
+  );
+}
+
+function isReplanRecord(value: unknown): value is ReplanRecord {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Partial<ReplanRecord>;
+  return (
+    typeof record.report === "string" &&
+    typeof record.replannedAt === "string" &&
+    Array.isArray(record.changes) &&
+    record.changes.every(isReplanChange) &&
+    Array.isArray(record.explanation) &&
+    record.explanation.every((item) => typeof item === "string")
+  );
+}
+
 export function parseDailyPlan(value: string | null): DailyPlan | null {
   if (!value) return null;
 
   try {
     const plan = JSON.parse(value) as Partial<DailyPlan>;
-    return plan.version === 1 &&
+    const validPlan =
+      plan.version === 1 &&
       typeof plan.date === "string" &&
       typeof plan.generatedAt === "string" &&
       typeof plan.unscheduledCount === "number" &&
       Array.isArray(plan.blocks) &&
-      plan.blocks.every(isScheduleBlock)
-      ? (plan as DailyPlan)
-      : null;
+      plan.blocks.every(isScheduleBlock);
+
+    if (!validPlan) return null;
+
+    return {
+      version: 1,
+      date: plan.date as string,
+      generatedAt: plan.generatedAt as string,
+      unscheduledCount: plan.unscheduledCount as number,
+      blocks: plan.blocks as ScheduleBlock[],
+      lastReplan: isReplanRecord(plan.lastReplan) ? plan.lastReplan : null,
+    };
   } catch {
     return null;
   }
@@ -400,5 +452,260 @@ export function generateDailyPlan({
     generatedAt: new Date().toISOString(),
     unscheduledCount: remaining.length,
     blocks,
+    lastReplan: null,
+  };
+}
+
+function extractDuration(report: string) {
+  const numericMatch = report.match(
+    /(\d+(?:\.\d+)?)\s*(hours?|hrs?|hr|minutes?|mins?|min)\b/i,
+  );
+  if (numericMatch) {
+    const amount = Number(numericMatch[1]);
+    const unit = numericMatch[2].toLowerCase();
+    return Math.round(amount * (unit.startsWith("h") ? 60 : 1));
+  }
+  if (/\b(?:an|one) hour\b/i.test(report)) return 60;
+  if (/\bhalf (?:an )?hour\b/i.test(report)) return 30;
+  return null;
+}
+
+function getMissedKeywords(report: string) {
+  const match = report.match(/\bmissed\s+(?:my\s+|the\s+)?(.+?)(?:[.!?,]|$)/i);
+  if (!match) return [];
+
+  const keywords = match[1]
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.replace(/[^a-z0-9]/g, ""))
+    .filter((word) => word.length > 2);
+
+  if (keywords.some((word) => ["workout", "exercise", "gym", "run"].includes(word))) {
+    keywords.push("health", "movement", "fitness");
+  }
+  return [...new Set(keywords)];
+}
+
+function describeMove(block: ScheduleBlock, start: number, end: number) {
+  const oldTime = `${formatPlanTime(block.startMinutes)}–${formatPlanTime(block.endMinutes)}`;
+  const newTime = `${formatPlanTime(start)}–${formatPlanTime(end)}`;
+  const oldDuration = block.endMinutes - block.startMinutes;
+  const newDuration = end - start;
+
+  if (newDuration < oldDuration) {
+    return `Shortened from ${formatDurationLabel(oldDuration)} to ${formatDurationLabel(newDuration)} and placed at ${newTime}.`;
+  }
+  return `Moved from ${oldTime} to ${newTime}.`;
+}
+
+function formatDurationLabel(minutes: number) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder ? `${hours}h ${remainder}m` : `${hours} hr`;
+}
+
+export function replanDailySchedule({
+  plan,
+  report,
+  nowMinutes,
+}: {
+  plan: DailyPlan;
+  report: string;
+  nowMinutes: number;
+}): DailyPlan {
+  const normalizedReport = report.trim();
+  const duration = extractDuration(normalizedReport);
+  const runningLate = /\b(late|behind|delayed|running behind)\b/i.test(
+    normalizedReport,
+  );
+  const limitedTime = /\b(only|just)\b.*\b(left|available|remaining)\b/i.test(
+    normalizedReport,
+  );
+  const lowEnergy = /\b(tired|exhausted|drained|low energy|no energy)\b/i.test(
+    normalizedReport,
+  );
+  const missedKeywords = getMissedKeywords(normalizedReport);
+  const reportedMiss = missedKeywords.length > 0;
+  const defaultDelay =
+    !runningLate && !limitedTime && !reportedMiss && !lowEnergy ? 30 : 0;
+  const delay = runningLate ? duration ?? 60 : defaultDelay;
+
+  const completedBlocks = plan.blocks.filter((block) => block.completed);
+  const unfinishedTaskBlocks = plan.blocks
+    .filter((block) => !block.completed && block.kind === "task")
+    .sort((a, b) => a.startMinutes - b.startMinutes);
+  const futureAnchors = plan.blocks.filter(
+    (block) =>
+      !block.completed && block.kind !== "task" && block.endMinutes > nowMinutes,
+  );
+  const expiredAnchors = plan.blocks.filter(
+    (block) =>
+      !block.completed && block.kind !== "task" && block.endMinutes <= nowMinutes,
+  );
+
+  const matchedMissedBlock = reportedMiss
+    ? unfinishedTaskBlocks.find((block) => {
+        const searchable = `${block.title} ${block.description}`.toLowerCase();
+        return missedKeywords.some((keyword) => searchable.includes(keyword));
+      })
+    : undefined;
+  const orderedTasks = matchedMissedBlock
+    ? [
+        matchedMissedBlock,
+        ...unfinishedTaskBlocks.filter(
+          (block) => block.id !== matchedMissedBlock.id,
+        ),
+      ]
+    : unfinishedTaskBlocks;
+
+  const originalFirstStart = unfinishedTaskBlocks.length
+    ? Math.min(...unfinishedTaskBlocks.map((block) => block.startMinutes))
+    : nowMinutes;
+  const start = Math.max(nowMinutes, originalFirstStart + delay);
+  const originalDayEnd = Math.max(
+    ...plan.blocks.map((block) => block.endMinutes),
+    start,
+  );
+  const schedulingEnd =
+    limitedTime && duration
+      ? Math.min(originalDayEnd, nowMinutes + duration)
+      : originalDayEnd;
+  const protectedIntervals = [...completedBlocks, ...futureAnchors].map(
+    (block) => ({ start: block.startMinutes, end: block.endMinutes }),
+  );
+  const availableSlots =
+    schedulingEnd - start >= 25
+      ? subtractIntervals(
+          { start, end: schedulingEnd },
+          protectedIntervals,
+        )
+      : [];
+
+  const changes: ReplanChange[] = expiredAnchors.map((block) => ({
+    blockId: block.id,
+    title: block.title,
+    type: "removed" as const,
+    detail: "Removed because its original time has already passed.",
+  }));
+  const rebuiltBlocks: ScheduleBlock[] = [];
+
+  if (lowEnergy && availableSlots[0]?.end - availableSlots[0]?.start >= 40) {
+    const resetStart = availableSlots[0].start;
+    const resetEnd = resetStart + 15;
+    const resetBlock: ScheduleBlock = {
+      id: `plan-${plan.date}-recovery-reset`,
+      kind: "routine",
+      title: "Quick recovery break",
+      description: "Pause, hydrate, and lower the pressure before continuing",
+      startMinutes: resetStart,
+      endMinutes: resetEnd,
+      completed: false,
+      focus: false,
+      goalId: null,
+      taskId: null,
+      priority: null,
+    };
+    rebuiltBlocks.push(resetBlock);
+    availableSlots[0] = { ...availableSlots[0], start: resetEnd + 5 };
+    changes.push({
+      blockId: resetBlock.id,
+      title: resetBlock.title,
+      type: "added",
+      detail: `Added a 15-minute reset at ${formatPlanTime(resetStart)}.`,
+    });
+  }
+
+  const remainingTasks = [...orderedTasks];
+  for (const slot of availableSlots) {
+    let cursor = slot.start;
+    while (remainingTasks.length > 0 && slot.end - cursor >= 25) {
+      const block = remainingTasks.shift();
+      if (!block) break;
+
+      const originalDuration = block.endMinutes - block.startMinutes;
+      const energyAdjustedDuration = lowEnergy
+        ? Math.max(25, Math.floor((originalDuration * 0.75) / 5) * 5)
+        : originalDuration;
+      const nextDuration = Math.min(energyAdjustedDuration, slot.end - cursor);
+      const nextBlock = {
+        ...block,
+        startMinutes: cursor,
+        endMinutes: cursor + nextDuration,
+      };
+      rebuiltBlocks.push(nextBlock);
+
+      if (
+        nextBlock.startMinutes !== block.startMinutes ||
+        nextBlock.endMinutes !== block.endMinutes
+      ) {
+        changes.push({
+          blockId: block.id,
+          title: block.title,
+          type:
+            nextDuration < originalDuration ? "shortened" : ("moved" as const),
+          detail: describeMove(block, nextBlock.startMinutes, nextBlock.endMinutes),
+        });
+      }
+
+      cursor = nextBlock.endMinutes;
+      if (slot.end - cursor >= 35 && remainingTasks.length > 0) cursor += 10;
+    }
+  }
+
+  for (const block of remainingTasks) {
+    changes.push({
+      blockId: block.id,
+      title: block.title,
+      type: "removed",
+      detail: "Deferred because it no longer fits before your sleep boundary.",
+    });
+  }
+
+  const explanation = [
+    `Protected ${completedBlocks.length} completed ${completedBlocks.length === 1 ? "block without changing it" : "blocks without changing them"}.`,
+  ];
+  if (runningLate) {
+    explanation.push(`Shifted unfinished work by ${formatDurationLabel(delay)}.`);
+  } else if (reportedMiss) {
+    explanation.push(
+      matchedMissedBlock
+        ? `Prioritized “${matchedMissedBlock.title}” so it gets another place today.`
+        : "Could not match the missed activity exactly, so the remaining plan was rebuilt from now.",
+    );
+  } else if (lowEnergy) {
+    explanation.push(
+      "Added recovery time and shortened unfinished work to reduce the load.",
+    );
+  } else if (limitedTime && duration) {
+    explanation.push(
+      `Kept only what fits inside the next ${formatDurationLabel(duration)}.`,
+    );
+  } else {
+    explanation.push(
+      "Used a 30-minute disruption buffer and rebuilt unfinished work from now.",
+    );
+  }
+  explanation.push("Kept future meal and sleep anchors in place where possible.");
+  if (remainingTasks.length > 0) {
+    explanation.push(
+      `Deferred ${remainingTasks.length} lower-positioned ${remainingTasks.length === 1 ? "block" : "blocks"} that no longer fit.`,
+    );
+  }
+
+  return {
+    ...plan,
+    unscheduledCount: plan.unscheduledCount + remainingTasks.length,
+    blocks: [
+      ...completedBlocks,
+      ...futureAnchors,
+      ...rebuiltBlocks,
+    ].sort((a, b) => a.startMinutes - b.startMinutes),
+    lastReplan: {
+      report: normalizedReport,
+      replannedAt: new Date().toISOString(),
+      changes,
+      explanation,
+    },
   };
 }
