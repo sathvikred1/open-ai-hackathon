@@ -9,6 +9,7 @@ import {
   CalendarDays,
   HeartPulse,
   ListTodo,
+  MessageCircleHeart,
   MoonStar,
   Rocket,
   Settings2,
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 const primaryNavigation = [
   { label: "Today", icon: CalendarDays, href: "/" },
+  { label: "Brolife Chat", icon: MessageCircleHeart, href: "/chat" },
   { label: "Goals", icon: Target, href: "/goals" },
   { label: "Tasks", icon: ListTodo, count: 8, href: null },
   { label: "Progress", icon: BarChart3, href: null },
