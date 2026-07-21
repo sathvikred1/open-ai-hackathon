@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 
+import { useHasHydrated } from "@/hooks/use-onboarding-profile";
+
 const routeDetails = {
   goals: {
     title: "Goals",
@@ -9,15 +11,24 @@ const routeDetails = {
   },
   today: {
     title: "Today",
-    subtitle: "Monday, July 20",
   },
 };
 
 export function AppHeaderTitle() {
   const pathname = usePathname();
+  const hasHydrated = useHasHydrated();
   const details = pathname.startsWith("/goals")
     ? routeDetails.goals
-    : routeDetails.today;
+    : {
+        ...routeDetails.today,
+        subtitle: hasHydrated
+          ? new Intl.DateTimeFormat("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            }).format(new Date())
+          : "Your daily plan",
+      };
 
   return (
     <div>
