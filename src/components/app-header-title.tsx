@@ -13,6 +13,10 @@ const routeDetails = {
     title: "Brolife Chat",
     subtitle: "Support grounded in your goals and today’s plan",
   },
+  progress: {
+    title: "Progress",
+    subtitle: "See your wins and keep the momentum going",
+  },
   today: {
     title: "Today",
   },
@@ -21,20 +25,22 @@ const routeDetails = {
 export function AppHeaderTitle() {
   const pathname = usePathname();
   const hasHydrated = useHasHydrated();
-  const details = pathname.startsWith("/chat")
-    ? routeDetails.chat
-    : pathname.startsWith("/goals")
-      ? routeDetails.goals
-      : {
-          ...routeDetails.today,
-          subtitle: hasHydrated
-            ? new Intl.DateTimeFormat("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              }).format(new Date())
-            : "Your daily plan",
-        };
+  const details = pathname.startsWith("/progress")
+    ? routeDetails.progress
+    : pathname.startsWith("/chat")
+      ? routeDetails.chat
+      : pathname.startsWith("/goals")
+        ? routeDetails.goals
+        : {
+            ...routeDetails.today,
+            subtitle: hasHydrated
+              ? new Intl.DateTimeFormat("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                }).format(new Date())
+              : "Your daily plan",
+          };
 
   return (
     <div>

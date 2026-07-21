@@ -1,5 +1,6 @@
 import { Goal, GoalPriority } from "@/lib/goals";
 import { OnboardingProfile } from "@/lib/onboarding";
+import { recordDailyProgress } from "@/lib/progress-history";
 import {
   interpretDisruptionLocally,
   isReplanInstructions,
@@ -290,6 +291,7 @@ export function parseDailyPlan(value: string | null): DailyPlan | null {
 
 export function saveDailyPlan(plan: DailyPlan) {
   localStorage.setItem(DAILY_PLAN_STORAGE_KEY, JSON.stringify(plan));
+  recordDailyProgress(plan);
   window.dispatchEvent(new Event(DAILY_PLAN_EVENT));
 }
 

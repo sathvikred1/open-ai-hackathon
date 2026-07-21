@@ -26,7 +26,7 @@ const primaryNavigation = [
   { label: "Brolife Chat", icon: MessageCircleHeart, href: "/chat" },
   { label: "Goals", icon: Target, href: "/goals" },
   { label: "Tasks", icon: ListTodo, count: 8, href: null },
-  { label: "Progress", icon: BarChart3, href: null },
+  { label: "Progress", icon: BarChart3, href: "/progress" },
 ];
 
 const categories = [
