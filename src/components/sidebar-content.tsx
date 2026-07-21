@@ -19,6 +19,7 @@ import {
 import { BrolifeLogo } from "@/components/brolife-logo";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useOnboardingProfile } from "@/hooks/use-onboarding-profile";
 import { cn } from "@/lib/utils";
 
 const primaryNavigation = [
@@ -38,6 +39,18 @@ const categories = [
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const profile = useOnboardingProfile();
+  const nightFocusPreference =
+    profile?.nightFocusPreference ?? "alternating";
+  const alternatingNightFocus = [0, 1, 3, 5].includes(new Date().getDay())
+    ? "Side hustle"
+    : "Health";
+  const nightFocus =
+    nightFocusPreference === "alternating"
+      ? alternatingNightFocus
+      : nightFocusPreference === "side-hustle"
+        ? "Side hustle"
+        : "Health";
 
   return (
     <div className="flex h-full flex-col bg-sidebar px-3 py-4 text-sidebar-foreground">
@@ -125,18 +138,18 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             </Badge>
           </div>
           <p className="text-xs font-medium text-emerald-200">Night focus</p>
-          <p className="mt-1 text-sm font-semibold">Side hustle</p>
+          <p className="mt-1 text-sm font-semibold">{nightFocus}</p>
           <p className="mt-1 text-xs text-emerald-100/60">8:30–10:00 PM</p>
         </div>
 
         <Separator />
         <Link
-          href="/onboarding"
+          href="/profile"
           onClick={onNavigate}
           className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Settings2 className="size-4" />
-          Edit preferences
+          Profile & preferences
         </Link>
       </div>
     </div>

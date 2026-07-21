@@ -1,10 +1,12 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { useOnboardingProfile } from "@/hooks/use-onboarding-profile";
+import { cn } from "@/lib/utils";
 
 function getInitials(name: string) {
   return name
@@ -25,7 +27,14 @@ export function UserProfile() {
   const name = profile?.name || "Brolife friend";
 
   return (
-    <Button variant="ghost" className="h-10 gap-2 px-1.5 sm:px-2">
+    <Link
+      href="/profile"
+      aria-label="Open profile and preferences"
+      className={cn(
+        buttonVariants({ variant: "ghost" }),
+        "h-10 gap-2 px-1.5 sm:px-2",
+      )}
+    >
       <Avatar size="default">
         <AvatarFallback className="bg-emerald-100 font-semibold text-emerald-800">
           {getInitials(name) || "BL"}
@@ -39,7 +48,7 @@ export function UserProfile() {
           Building momentum
         </p>
       </div>
-      <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
-    </Button>
+      <ChevronRight className="hidden size-3.5 text-muted-foreground sm:block" />
+    </Link>
   );
 }

@@ -1,6 +1,8 @@
 export const ONBOARDING_STORAGE_KEY = "brolife:onboarding-profile";
 export const ONBOARDING_PROFILE_EVENT = "brolife:onboarding-profile-updated";
 
+export type NightFocusPreference = "alternating" | "side-hustle" | "health";
+
 export type OnboardingProfile = {
   version: 1;
   name: string;
@@ -9,6 +11,7 @@ export type OnboardingProfile = {
   focusStartTime: string;
   focusEndTime: string;
   goals: string[];
+  nightFocusPreference?: NightFocusPreference;
   completedAt: string;
 };
 
@@ -28,6 +31,10 @@ export function parseOnboardingProfile(
       typeof profile.focusEndTime === "string" &&
       Array.isArray(profile.goals) &&
       profile.goals.every((goal) => typeof goal === "string") &&
+      (profile.nightFocusPreference === undefined ||
+        profile.nightFocusPreference === "alternating" ||
+        profile.nightFocusPreference === "side-hustle" ||
+        profile.nightFocusPreference === "health") &&
       typeof profile.completedAt === "string";
 
     return hasRequiredFields ? (profile as OnboardingProfile) : null;
