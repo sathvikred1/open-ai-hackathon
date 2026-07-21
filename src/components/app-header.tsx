@@ -1,5 +1,6 @@
 import { Bell, Search } from "lucide-react";
 
+import { AppHeaderTitle } from "@/components/app-header-title";
 import { MobileSidebar } from "@/components/mobile-sidebar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -10,12 +11,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b bg-background/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
       <div className="flex items-center gap-3">
         <MobileSidebar />
-        <div>
-          <p className="text-sm font-semibold tracking-tight sm:text-base">Today</p>
-          <p className="hidden text-xs text-muted-foreground sm:block">
-            Monday, July 20
-          </p>
-        </div>
+        <AppHeaderTitle />
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">

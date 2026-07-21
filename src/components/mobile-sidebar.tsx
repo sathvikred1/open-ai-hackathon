@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Menu } from "lucide-react";
 
 import { SidebarContent } from "@/components/sidebar-content";
@@ -13,8 +14,10 @@ import {
 } from "@/components/ui/sheet";
 
 export function MobileSidebar() {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         aria-label="Open navigation"
         className="flex size-9 items-center justify-center rounded-xl border bg-background text-foreground shadow-xs transition-colors hover:bg-muted lg:hidden"
@@ -26,7 +29,7 @@ export function MobileSidebar() {
           <SheetTitle>Navigation</SheetTitle>
           <SheetDescription>Open Brolife pages and categories.</SheetDescription>
         </SheetHeader>
-        <SidebarContent />
+        <SidebarContent onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
   );

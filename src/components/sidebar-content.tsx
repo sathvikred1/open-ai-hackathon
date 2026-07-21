@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   BarChart3,
   BookOpen,
@@ -18,10 +21,10 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const primaryNavigation = [
-  { label: "Today", icon: CalendarDays, active: true },
-  { label: "Goals", icon: Target },
-  { label: "Tasks", icon: ListTodo, count: 8 },
-  { label: "Progress", icon: BarChart3 },
+  { label: "Today", icon: CalendarDays, href: "/" },
+  { label: "Goals", icon: Target, href: "/goals" },
+  { label: "Tasks", icon: ListTodo, count: 8, href: null },
+  { label: "Progress", icon: BarChart3, href: null },
 ];
 
 const categories = [
@@ -31,7 +34,9 @@ const categories = [
   { label: "Side hustle", icon: Rocket, color: "text-amber-600" },
 ];
 
-export function SidebarContent() {
+export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
+
   return (
     <div className="flex h-full flex-col bg-sidebar px-3 py-4 text-sidebar-foreground">
       <div className="px-2 pb-7 pt-1">
@@ -41,9 +46,15 @@ export function SidebarContent() {
       <nav aria-label="Main navigation" className="space-y-1">
         {primaryNavigation.map((item) => {
           const Icon = item.icon;
+          const active =
+            item.href === "/"
+              ? pathname === "/"
+              : item.href
+                ? pathname.startsWith(item.href)
+                : false;
           const className = cn(
             "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors",
-            item.active
+            active
               ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           );
@@ -63,8 +74,13 @@ export function SidebarContent() {
             </>
           );
 
-          return item.active ? (
-            <Link key={item.label} href="/" className={className}>
+          return item.href ? (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={className}
+              onClick={onNavigate}
+            >
               {content}
             </Link>
           ) : (
@@ -114,6 +130,7 @@ export function SidebarContent() {
         <Separator />
         <Link
           href="/onboarding"
+          onClick={onNavigate}
           className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Settings2 className="size-4" />
