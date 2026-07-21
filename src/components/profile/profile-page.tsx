@@ -371,7 +371,10 @@ function ProfileForm({ profile }: { profile: OnboardingProfile }) {
             </Card>
           </div>
 
-          <aside className="space-y-5 lg:sticky lg:top-24">
+          <aside
+            aria-label="Profile actions"
+            className="space-y-5 lg:sticky lg:top-24"
+          >
             <Card className="border-0 bg-emerald-950 text-white shadow-lg shadow-emerald-950/10">
               <CardContent className="space-y-4 px-5">
                 <div className="flex items-center justify-between">

@@ -120,7 +120,7 @@ function ScheduleItem({
           current
             ? "border-emerald-200 bg-emerald-50/70 shadow-sm shadow-emerald-950/5"
             : "border-border/70 bg-card hover:border-border hover:shadow-sm",
-          block.completed && "bg-muted/35 opacity-70",
+          block.completed && "border-dashed bg-muted/35",
         )}
       >
         <div className="flex items-start gap-3">
@@ -142,7 +142,7 @@ function ScheduleItem({
                 {block.title}
               </p>
               {current ? (
-                <Badge className="border-0 bg-emerald-600 text-[10px] text-white">
+                <Badge className="border-0 bg-emerald-700 text-[10px] text-white">
                   Up next
                 </Badge>
               ) : null}
@@ -169,7 +169,7 @@ function ScheduleItem({
                 <Clock3 className="size-3" />
                 {formatDuration(duration)}
               </span>
-              <span className="text-[11px] text-muted-foreground/70">
+              <span className="text-[11px] text-muted-foreground">
                 until {formatPlanTime(block.endMinutes)}
               </span>
             </div>
@@ -347,6 +347,7 @@ export function TodayPage() {
                   </p>
                 </div>
                 <Progress
+                  aria-label="Daily plan completion"
                   value={progress}
                   className="mt-2 [&_[data-slot=progress-indicator]]:bg-emerald-600"
                 />
@@ -524,7 +525,7 @@ export function TodayPage() {
             </CardContent>
           </Card>
 
-          <aside className="space-y-5">
+          <aside aria-label="Today insights" className="space-y-5">
             <Card className="border-0 bg-emerald-950 text-white shadow-lg shadow-emerald-950/10 ring-0">
               <CardHeader>
                 <div className="mb-4 flex items-center justify-between">
@@ -626,6 +627,7 @@ export function TodayPage() {
                     <span className="font-semibold tabular-nums">{goalProgress}%</span>
                   </div>
                   <Progress
+                    aria-label="Goal completion"
                     value={goalProgress}
                     className="[&_[data-slot=progress-indicator]]:bg-orange-500"
                   />
@@ -645,11 +647,11 @@ export function TodayPage() {
               <CardHeader>
                 <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-violet-700">
                   <RotateCcw className="size-3.5" />
-                  AI-ASSISTED ADAPTIVE REPLANNING
+                  ADAPTIVE REPLANNING
                 </div>
                 <CardTitle className="text-lg font-semibold">Plans changed?</CardTitle>
                 <CardDescription className="leading-5">
-                  Explain what changed naturally. AI understands the disruption,
+                  Explain what changed naturally. AI interprets it when available,
                   then Brolife&apos;s local engine safely rebuilds your timetable.
                 </CardDescription>
               </CardHeader>
@@ -679,8 +681,8 @@ export function TodayPage() {
                 What changed?
               </DialogTitle>
               <DialogDescription className="leading-5">
-                Tell Brolife what happened in plain language. AI interprets the
-                disruption, then local rules rebuild only the unfinished day.
+                Tell Brolife what happened in plain language. AI interprets it
+                when available, then local rules rebuild only the unfinished day.
               </DialogDescription>
             </DialogHeader>
 
@@ -692,6 +694,8 @@ export function TodayPage() {
                   setReplanError("");
                 }}
                 placeholder="e.g. I’m running 2 hours late and feeling tired."
+                aria-label="Describe what changed"
+                maxLength={1000}
                 autoFocus
                 disabled={isReplanning}
                 className="min-h-28 resize-none rounded-xl px-4 py-3 leading-6"

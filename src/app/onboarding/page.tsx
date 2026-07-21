@@ -399,6 +399,7 @@ function OnboardingForm({
                           size="sm"
                           variant="outline"
                           onClick={() => toggleSuggestedGoal(goal)}
+                          aria-pressed={selected}
                           className={cn(
                             "rounded-full bg-card",
                             selected && "border-emerald-300 bg-emerald-50 text-emerald-800",

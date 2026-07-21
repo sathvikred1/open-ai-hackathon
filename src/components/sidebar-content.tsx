@@ -8,7 +8,6 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   HeartPulse,
-  ListTodo,
   MessageCircleHeart,
   MoonStar,
   Rocket,
@@ -26,7 +25,6 @@ const primaryNavigation = [
   { label: "Today", icon: CalendarDays, href: "/" },
   { label: "Brolife Chat", icon: MessageCircleHeart, href: "/chat" },
   { label: "Goals", icon: Target, href: "/goals" },
-  { label: "Tasks", icon: ListTodo, count: 8, href: null },
   { label: "Progress", icon: BarChart3, href: "/progress" },
 ];
 
@@ -54,9 +52,14 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col bg-sidebar px-3 py-4 text-sidebar-foreground">
-      <div className="px-2 pb-7 pt-1">
+      <Link
+        href="/"
+        onClick={onNavigate}
+        aria-label="Go to Today"
+        className="rounded-xl px-2 pb-7 pt-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <BrolifeLogo />
-      </div>
+      </Link>
 
       <nav aria-label="Main navigation" className="space-y-1">
         {primaryNavigation.map((item) => {
@@ -78,14 +81,6 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             <>
               <Icon className="size-[17px]" strokeWidth={2} />
               <span>{item.label}</span>
-              {item.count ? (
-                <Badge
-                  variant="secondary"
-                  className="ml-auto h-5 min-w-5 px-1.5 text-[10px]"
-                >
-                  {item.count}
-                </Badge>
-              ) : null}
             </>
           );
 
@@ -95,6 +90,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               href={item.href}
               className={className}
               onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
             >
               {content}
             </Link>
@@ -107,25 +103,24 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="px-3 pb-2 pt-7">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
           Categories
         </p>
       </div>
-      <nav aria-label="Task categories" className="space-y-0.5">
+      <div aria-label="Task categories" className="space-y-0.5">
         {categories.map((category) => {
           const Icon = category.icon;
           return (
-            <button
+            <div
               key={category.label}
-              type="button"
-              className="flex h-9 w-full items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="flex h-9 w-full items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground"
             >
               <Icon className={cn("size-4", category.color)} />
               <span>{category.label}</span>
-            </button>
+            </div>
           );
         })}
-      </nav>
+      </div>
 
       <div className="mt-auto space-y-3 pt-6">
         <div className="rounded-2xl bg-emerald-950 p-4 text-white shadow-sm">
@@ -137,9 +132,15 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               Tonight
             </Badge>
           </div>
-          <p className="text-xs font-medium text-emerald-200">Night focus</p>
+          <p className="text-xs font-medium text-emerald-200">
+            Night focus preference
+          </p>
           <p className="mt-1 text-sm font-semibold">{nightFocus}</p>
-          <p className="mt-1 text-xs text-emerald-100/60">8:30–10:00 PM</p>
+          <p className="mt-1 text-xs text-emerald-100/60">
+            {nightFocusPreference === "alternating"
+              ? "Alternates by weekday"
+              : "Selected for every evening"}
+          </p>
         </div>
 
         <Separator />

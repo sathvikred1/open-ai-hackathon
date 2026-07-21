@@ -170,6 +170,11 @@ export function ProgressPage() {
                     <div
                       key={day.date}
                       className="flex h-full min-w-0 flex-col items-center justify-end gap-2"
+                      aria-label={
+                        hasData
+                          ? `${day.dateLabel}: ${day.completion}% complete`
+                          : `${day.dateLabel}: no plan recorded`
+                      }
                       title={
                         hasData
                           ? `${day.dateLabel}: ${day.completion}% complete`
@@ -253,6 +258,7 @@ export function ProgressPage() {
                         </span>
                       </div>
                       <Progress
+                        aria-label={`Progress for ${goal.title}`}
                         value={goalProgress}
                         className={cn(
                           "[&_[data-slot=progress-indicator]]:bg-violet-500",

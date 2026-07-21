@@ -9,8 +9,13 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Brolife",
-  description: "A supportive AI productivity companion.",
+  applicationName: "Brolife",
+  title: {
+    default: "Brolife",
+    template: "%s | Brolife",
+  },
+  description:
+    "A supportive AI productivity companion for goals, daily planning, and adaptive replanning.",
 };
 
 export default function RootLayout({

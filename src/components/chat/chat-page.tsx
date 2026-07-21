@@ -306,7 +306,7 @@ export function ChatPage() {
           </CardContent>
         </Card>
 
-        <aside className="space-y-4">
+        <aside aria-label="Chat context" className="space-y-4">
           <Card className="border-0 bg-emerald-950 text-white shadow-lg shadow-emerald-950/10">
             <CardContent className="space-y-4 px-5">
               <div>

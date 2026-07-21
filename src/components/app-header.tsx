@@ -1,8 +1,7 @@
-import { Bell, Search } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import { AppHeaderTitle } from "@/components/app-header-title";
 import { MobileSidebar } from "@/components/mobile-sidebar";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { UserProfile } from "@/components/user-profile";
 
@@ -15,31 +14,11 @@ export function AppHeader() {
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">
-        <Button
-          variant="outline"
-          className="hidden h-9 w-52 justify-start gap-2 text-muted-foreground shadow-none md:flex"
-        >
-          <Search className="size-4" />
-          <span className="font-normal">Search anything</span>
-          <kbd className="ml-auto rounded-md border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-            ⌘K
-          </kbd>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          aria-label="Search"
-          className="md:hidden"
-        >
-          <Search />
-        </Button>
-        <Button variant="ghost" size="icon-lg" aria-label="Notifications">
-          <span className="relative">
-            <Bell className="size-[18px]" />
-            <span className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-emerald-500 ring-2 ring-background" />
-          </span>
-        </Button>
-        <Separator orientation="vertical" className="mx-1 h-6" />
+        <div className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground md:flex">
+          <ShieldCheck className="size-3.5 text-emerald-700" />
+          Saved on this device
+        </div>
+        <Separator orientation="vertical" className="mx-1 hidden h-6 sm:block" />
         <UserProfile />
       </div>
     </header>

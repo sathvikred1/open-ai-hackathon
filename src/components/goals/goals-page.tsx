@@ -408,6 +408,7 @@ function GoalCard({
             <span className="tabular-nums">{progress}%</span>
           </div>
           <Progress
+            aria-label={`Progress for ${goal.title}`}
             value={progress}
             className="[&_[data-slot=progress-indicator]]:bg-emerald-600"
           />
@@ -637,6 +638,7 @@ export function GoalsPage() {
                 key={item}
                 type="button"
                 onClick={() => setFilter(item)}
+                aria-pressed={filter === item}
                 className={cn(
                   "rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors sm:px-4",
                   filter === item
