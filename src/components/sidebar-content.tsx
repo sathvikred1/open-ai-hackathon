@@ -14,7 +14,6 @@ import {
 
 import { BrolifeLogo } from "@/components/brolife-logo";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -113,13 +112,13 @@ export function SidebarContent() {
         </div>
 
         <Separator />
-        <Button
-          variant="ghost"
-          className="h-10 w-full justify-start gap-3 px-3 text-muted-foreground"
+        <Link
+          href="/onboarding"
+          className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Settings2 className="size-4" />
-          Settings
-        </Button>
+          Edit preferences
+        </Link>
       </div>
     </div>
   );

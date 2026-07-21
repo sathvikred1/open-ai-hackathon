@@ -1,9 +1,9 @@
-import { Bell, ChevronDown, Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 
 import { MobileSidebar } from "@/components/mobile-sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { UserProfile } from "@/components/user-profile";
 
 export function AppHeader() {
   return (
@@ -44,20 +44,7 @@ export function AppHeader() {
           </span>
         </Button>
         <Separator orientation="vertical" className="mx-1 h-6" />
-        <Button variant="ghost" className="h-10 gap-2 px-1.5 sm:px-2">
-          <Avatar size="default">
-            <AvatarFallback className="bg-emerald-100 font-semibold text-emerald-800">
-              SR
-            </AvatarFallback>
-          </Avatar>
-          <div className="hidden text-left sm:block">
-            <p className="text-xs font-semibold leading-tight">Sathvik</p>
-            <p className="text-[10px] leading-tight text-muted-foreground">
-              Building momentum
-            </p>
-          </div>
-          <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
-        </Button>
+        <UserProfile />
       </div>
     </header>
   );

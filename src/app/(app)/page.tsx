@@ -28,6 +28,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { UserName } from "@/components/user-profile";
 import { cn } from "@/lib/utils";
 
 const schedule = [
@@ -180,7 +181,7 @@ export default function TodayPage() {
               You&apos;re making good progress
             </div>
             <h1 className="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
-              Good morning, Sathvik.
+              Good morning, <UserName />.
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
               Here&apos;s your plan for today. Two tasks are already done, and your
